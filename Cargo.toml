@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 evo_ui_engine = { git = "ssh://git@github.com/niqel/evo_ui_engine.git", tag = "v0.1.0" }

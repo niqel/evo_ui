@@ -1,0 +1,20 @@
+[scene]
+width = 800
+height = 450
+
+[[acetate]]
+id = "bg"
+x = 0
+y = 0
+w = 800
+h = 450
+fill = "#0b1020"
+
+[[acetate]]
+id = "panel"
+z = 10
+x = 80
+y = 70
+w = 240
+h = 120
+fill = "#4b14e2"
