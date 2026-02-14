@@ -517,7 +517,7 @@ dependencies = [
 [[package]]
 name = "evo_ui_engine"
 version = "0.1.0"
-source = "git+ssh://git@github.com/niqel/evo_ui_engine.git?tag=v0.1.1#fed9561cc186a716f60e6389443ba2705d63fd00"
+source = "git+ssh://git@github.com/niqel/evo_ui_engine.git?tag=v0.1.2#43d3710038a22ba9ca3b14d0b1b22cb0a219d862"
 dependencies = [
  "kurbo",
  "pollster",

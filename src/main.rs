@@ -57,7 +57,7 @@ fn main() -> anyhow::Result<()> {
             project_type,
         } => {
             let project_dir = output.join(&name);
-            create_project(&project_dir, project_type)?;
+            create_project(&project_dir, &name, project_type)?;
             println!("✅ Proyecto creado en: {}", project_dir.display());
             Ok(())
         }
@@ -94,7 +94,7 @@ fn canonical_dir(path: PathBuf) -> anyhow::Result<PathBuf> {
     Ok(p)
 }
 
-fn create_project(project_dir: &Path, project_type: ProjectType) -> anyhow::Result<()> {
+fn create_project(project_dir: &Path, project_name: &str, project_type: ProjectType) -> anyhow::Result<()> {
     if project_dir.exists() {
         anyhow::bail!("Ya existe: {}", project_dir.display());
     }
@@ -104,18 +104,22 @@ fn create_project(project_dir: &Path, project_type: ProjectType) -> anyhow::Resu
     fs::create_dir_all(project_dir.join("src").join("acetates"))?;
 
     // manifiesto mínimo (toml)
-    let manifest = r#"
-[app]
-name = "mi_app"
-type = "desktop"
-"#;
-    fs::write(project_dir.join("manifest.toml"), manifest.trim_start())?;
+    let app_type = match project_type {
+        ProjectType::Desktop => "desktop",
+        ProjectType::Wasm => "wasm",
+    };
+    let manifest = format!(
+        "[app]\nname = \"{}\"\ntype = \"{}\"\n",
+        project_name, app_type
+    );
+    fs::write(project_dir.join("manifest.toml"), manifest)?;
 
     // ui.toml inicial (simple)
     let ui_toml = r##"
 [scene]
 width = 800
 height = 450
+includes = ["src/acetates/space.toml"]
 
 [[acetate]]
 id = "bg"
@@ -135,6 +139,26 @@ h = 120
 fill = "#4b14e2"
 "##;
     fs::write(project_dir.join("ui.toml"), ui_toml.trim_start())?;
+
+    let mut space_toml = String::new();
+    for i in 0..60 {
+        let size = 1 + (i % 3);
+        let x = (i * 137 + 41) % (800 - size);
+        let y = (i * 83 + 17) % (450 - size);
+        let color = match i % 3 {
+            0 => "#ffffff",
+            1 => "#cfe8ff",
+            _ => "#ffe9c4",
+        };
+        space_toml.push_str(&format!(
+            "[[acetate]]\nid = \"star_{:03}\"\nx = {}\ny = {}\nw = {}\nh = {}\nz = 5\nfill = \"{}\"\n\n",
+            i, x, y, size, size, color
+        ));
+    }
+    fs::write(
+        project_dir.join("src").join("acetates").join("space.toml"),
+        space_toml,
+    )?;
 
     // placeholder main.evo (para futuro evo_script)
     let main_evo = r#"

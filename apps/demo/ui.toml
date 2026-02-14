@@ -2,6 +2,7 @@
 width = 800
 height = 450
 
+# Fondo
 [[acetate]]
 id = "bg"
 x = 0
@@ -10,6 +11,10 @@ w = 800
 h = 450
 fill = "#0b1020"
 
+# Incluye "space" (estrellas)
+include = ["src/acetates/space.toml"]
+
+# Panel encima (opcional)
 [[acetate]]
 id = "panel"
 z = 10
