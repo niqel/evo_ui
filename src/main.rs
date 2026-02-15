@@ -26,6 +26,14 @@ enum Commands {
         /// Tipo de proyecto
         #[arg(long = "type", value_enum, default_value_t = ProjectType::Desktop)]
         project_type: ProjectType,
+
+        /// Crea proyecto vacío (sin ui.toml)
+        #[arg(long = "empty", conflicts_with = "bg_green")]
+        empty: bool,
+
+        /// Crea ui.toml mínimo con fondo verde
+        #[arg(long = "bg-green", conflicts_with = "empty")]
+        bg_green: bool,
     },
 
     /// Ejecuta el proyecto (lee ui.toml y abre ventana)
@@ -55,9 +63,18 @@ fn main() -> anyhow::Result<()> {
             name,
             output,
             project_type,
+            empty,
+            bg_green,
         } => {
             let project_dir = output.join(&name);
-            create_project(&project_dir, &name, project_type)?;
+            let ui_mode = if empty {
+                UiMode::Empty
+            } else if bg_green {
+                UiMode::BgGreen
+            } else {
+                UiMode::Default
+            };
+            create_project(&project_dir, &name, project_type, ui_mode)?;
             println!("✅ Proyecto creado en: {}", project_dir.display());
             Ok(())
         }
@@ -71,22 +88,28 @@ fn main() -> anyhow::Result<()> {
             };
 
             if !ui_path.exists() {
-                anyhow::bail!("No existe el archivo UI: {}", ui_path.display());
+                println!(
+                    "⚠️  No existe el archivo UI: {}. Ejecutando fallback del engine.",
+                    ui_path.display()
+                );
             }
 
             println!("▶️  Ejecutando UI: {}", ui_path.display());
 
             // ⚠️ Ajusta este import/llamada según cómo quedó tu engine:
             // La idea es: runtime winit mínimo, algo como run_from_path(ui_path)
-            evo_ui_engine::runtime::run_from_path(&ui_path)
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            evo_ui_engine::runtime::run_from_path(&ui_path).map_err(|e| anyhow::anyhow!("{e}"))?;
             Ok(())
         }
     }
 }
 
 fn canonical_dir(path: PathBuf) -> anyhow::Result<PathBuf> {
-    let p = if path.as_os_str().is_empty() { PathBuf::from(".") } else { path };
+    let p = if path.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        path
+    };
     let p = fs::canonicalize(&p)?;
     if !p.is_dir() {
         anyhow::bail!("No es un directorio: {}", p.display());
@@ -94,7 +117,19 @@ fn canonical_dir(path: PathBuf) -> anyhow::Result<PathBuf> {
     Ok(p)
 }
 
-fn create_project(project_dir: &Path, project_name: &str, project_type: ProjectType) -> anyhow::Result<()> {
+#[derive(Debug, Clone, Copy)]
+enum UiMode {
+    Empty,
+    BgGreen,
+    Default,
+}
+
+fn create_project(
+    project_dir: &Path,
+    project_name: &str,
+    project_type: ProjectType,
+    ui_mode: UiMode,
+) -> anyhow::Result<()> {
     if project_dir.exists() {
         anyhow::bail!("Ya existe: {}", project_dir.display());
     }
@@ -114,12 +149,17 @@ fn create_project(project_dir: &Path, project_name: &str, project_type: ProjectT
     );
     fs::write(project_dir.join("manifest.toml"), manifest)?;
 
-    // ui.toml inicial (simple)
-    let ui_toml = r##"
-[scene]
+    if !matches!(ui_mode, UiMode::Empty) {
+        let fill = match ui_mode {
+            UiMode::BgGreen => "#00aa00",
+            UiMode::Default => "#070b16",
+            UiMode::Empty => unreachable!(),
+        };
+
+        let ui_toml = format!(
+            r#"[scene]
 width = 800
 height = 450
-includes = ["src/acetates/space.toml"]
 
 [[acetate]]
 id = "bg"
@@ -127,45 +167,22 @@ x = 0
 y = 0
 w = 800
 h = 450
-fill = "#0b1020"
-
-[[acetate]]
-id = "panel"
-z = 10
-x = 80
-y = 70
-w = 240
-h = 120
-fill = "#4b14e2"
-"##;
-    fs::write(project_dir.join("ui.toml"), ui_toml.trim_start())?;
-
-    let mut space_toml = String::new();
-    for i in 0..60 {
-        let size = 1 + (i % 3);
-        let x = (i * 137 + 41) % (800 - size);
-        let y = (i * 83 + 17) % (450 - size);
-        let color = match i % 3 {
-            0 => "#ffffff",
-            1 => "#cfe8ff",
-            _ => "#ffe9c4",
-        };
-        space_toml.push_str(&format!(
-            "[[acetate]]\nid = \"star_{:03}\"\nx = {}\ny = {}\nw = {}\nh = {}\nz = 5\nfill = \"{}\"\n\n",
-            i, x, y, size, size, color
-        ));
+fill = "{}"
+"#,
+            fill
+        );
+        fs::write(project_dir.join("ui.toml"), ui_toml)?;
     }
-    fs::write(
-        project_dir.join("src").join("acetates").join("space.toml"),
-        space_toml,
-    )?;
 
     // placeholder main.evo (para futuro evo_script)
     let main_evo = r#"
 # main.evo (placeholder)
 # aquí irá la lógica cuando exista evo_script
 "#;
-    fs::write(project_dir.join("src").join("main.evo"), main_evo.trim_start())?;
+    fs::write(
+        project_dir.join("src").join("main.evo"),
+        main_evo.trim_start(),
+    )?;
 
     // según tipo (por ahora solo marca)
     match project_type {
